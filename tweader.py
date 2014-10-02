@@ -6,7 +6,7 @@ def get_keys(filename):
     ''' KEY_LAZY_MUSIC, SECRET_LAZY_MUSIC, ACCESS_TOKEN, ACCESS_TOKEN_SECRET
     '''
     fhan = open(filename, 'rU')
-    list_keys = fhan.readlines()
+    list_keys = [x.strip() for x in fhan.readlines()]
     return list_keys
 
 def get_tweet_with(query):
