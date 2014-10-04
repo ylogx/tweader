@@ -2,21 +2,24 @@
 
 import random
 import sys
+import time
 import tweepy
+
+import markov
 # Global
 api = None
-SHORT_URL = 'http://goo.gl/DnwHCy'
+SHORT_URL = 'goo.gl/DnwHCy'
 MESSAGES = [
-            'Check out ',
-            'Go see ',
-            'Found this ',
-            'This looks nice ',
-            'This is amazing ',
-            'This changed me ',
+            'Check out',
+            'Go see',
+            'Found this',
+            'This looks nice',
+            'This is amazing',
+            'This changed me',
+            'I love this',
             ]
-MESSAGES = [out+SHORT_URL for out in MESSAGES]
-print MESSAGES
-MAX_ITEMS = 100     # No. of items from past to check
+MESSAGES = [out+' '+SHORT_URL for out in MESSAGES]
+MAX_ITEMS = 60     # No. of items from past to check
 
 def get_keys(filename):
     '''
@@ -70,10 +73,11 @@ def get_interesting(screen_name):
     for status in tweepy.Cursor(api.user_timeline,
             id=screen_name).items(MAX_ITEMS):
         statuses.append(status.text)
+    #for page in tweepy.Cursor(api.user_timeline, id=screen_name).pages(3):
+        #for status in page:
+            #statuses.append(status.text)
+    print len(statuses), 'statues as algorithm input.'
 
-    print len(statuses), 'statues found.'
-
-    import markov
     machine = markov.Machine(statuses)
 
     return machine.generate(size=random.randint(4,20))
@@ -83,22 +87,40 @@ def get_interesting(screen_name):
     #return final
 
 
-def send_replies():
+def send_replies(query=None):
+    '''
+    Send replies to random netizens and get banned consequently
+    '''
     count = 0
-    query = 'Music'
+    if query == None:
+        query = 'Music'
     api = init_api('KEYS')
-    searched_tweets = api.search(query)
-    print 'Found ', len(searched_tweets), ' results'
+    from httplib import IncompleteRead
+    try:
+        searched_tweets = api.search(query)
+    except IncompleteRead:
+        send_replies()
+    except:
+        print 'EXCEPTION: ', sys.exc_info()[1]
+        raise
+    print 'Found ', len(searched_tweets), ' results for query: ', query
     print 'Processing now ...'
     for tweet in searched_tweets:
         screen_name = tweet.user.screen_name
         in_reply_to_status_id = tweet.id
         try:
-            mystatus = '@' + screen_name + ' '
-            print 'Creating Markov Machine for ', screen_name
+            reply_name = '@' + screen_name + ' '
+            print '%d. Training new AI Machine to Learn for user'%(count+1),
+            print screen_name, 'with',
+
             interesting_line = get_interesting(screen_name)
-            mystatus += interesting_line[:120]   #TODO: split properly
-            mystatus += ' ' + MESSAGES[random.randint(0,len(MESSAGES)-1)]
+
+            check_out_msg = ' ' + MESSAGES[random.randint(0, len(MESSAGES)-1)]
+            mystatus = reply_name + interesting_line + check_out_msg
+            #TODO: Better splitting
+            while len(mystatus) > 140-8:    # 7 for http:// which is implicit
+                interesting_line = interesting_line[:-1*(len(mystatus)-(140-8-1))]
+                mystatus = reply_name + interesting_line + check_out_msg
 
             print 'Updating: ', mystatus
             api.update_status(mystatus, in_reply_to_status_id)
@@ -107,26 +129,26 @@ def send_replies():
             count += 1
         except KeyboardInterrupt:
             raise
+        except tweepy.error.TweepError:
+            try:
+                print 'Yo',sys.exc_info()[1][0][0]['code']
+                if sys.exc_info()[1][0][0]['code'] == 88:   #Twitter Limit reached
+                    return count
+                elif sys.exc_info()[1][0][0]['code'] == 186:   #Twitter Limit reached
+                    print 'Status Long: ', sys.exc_info()[1]
+                else:
+                    print sys.exc_info()
+            except TypeError:
+                print sys.exc_info()
+                continue
         except:
-            print 'Exception: ', sys.exc_info()[0]
-            print sys.exc_info()[1]
+            print 'EXCEPTION: ', sys.exc_info()[0], sys.exc_info()[1]
     return count
-
-def pacer():
-    count = 0
-    count += send_replies()
 
 def main(argv):
     ''' main '''
     api = init_api('KEYS')
-    send_replies()
-    return
-    query_list = ['Music']
-    if len(argv) > 1:
-        query_list = argv[1:]
-    for query in query_list:
-        get_tweet_with(query)
-    return
+    return send_replies()
 
 if __name__ == '__main__':
     main(sys.argv)
