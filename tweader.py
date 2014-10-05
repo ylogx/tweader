@@ -21,7 +21,7 @@ MESSAGES = [
 MESSAGES = [out+' '+SHORT_URL for out in MESSAGES]
 MAX_ITEMS = 60     # No. of items from past to check
 
-def get_keys(filename):
+def get_keys(filename, keynumber=None):
     '''
     @return [
                 KEY_LAZY_MUSIC,
@@ -31,20 +31,29 @@ def get_keys(filename):
             ]
     '''
     fhan = open(filename, 'rU')
-    #Read top 4 lines which should contain keys in the order shown above
-    list_keys = [x.strip() for x in fhan.readlines()[:4]]
+    if keynumber == None:
+        keynumber = 1
+    else:
+        print 'Using Key Number', keynumber, 'from file', filename
+    #Read 4 lines which should contain keys in the order shown above
+    lower = (keynumber-1) * 4
+    upper = (keynumber) * 4
+    f_list = [x for x in fhan.readlines() if x[0] != '#']
+    list_keys = [x.strip() for x in f_list[lower:upper]]
     return list_keys
 
 
-def init_api(filename):
+def init_api(filename=None, keynumber=None):
     '''
     Initialize the api using keys stored in filename
     '''
+    if filename == None:
+        filename = 'KEYS'
     global api
     if api != None:
         return api
     (key_lazy_music, secret_lazy_music,
-            access_token, access_token_secret) = get_keys(filename)
+            access_token, access_token_secret) = get_keys(filename, keynumber)
 
     auth = tweepy.OAuthHandler(key_lazy_music, secret_lazy_music)
     auth.set_access_token(access_token, access_token_secret)
@@ -55,7 +64,7 @@ def init_api(filename):
 
 def get_tweet_with(query):
     ''' Get a tweet with particular query '''
-    api = init_api('KEYS')
+    api = init_api()
     searched_tweets = api.search(query)
     for tweet in searched_tweets:
         print tweet.user.screen_name, ': ', tweet.text
@@ -67,7 +76,7 @@ def get_interesting(screen_name):
     '''
     #screen_name = str(screen_name)
 
-    api = init_api('KEYS')
+    api = init_api()
     #for page in tweepy.Cursor(timeline, count=200).pages(16):
     statuses = []
     for status in tweepy.Cursor(api.user_timeline,
@@ -87,14 +96,14 @@ def get_interesting(screen_name):
     #return final
 
 
-def send_replies(query=None):
+def send_replies(query=None, keyfile=None, keynumber=None):
     '''
     Send replies to random netizens and get banned consequently
     '''
     count = 0
     if query == None:
         query = 'Music'
-    api = init_api('KEYS')
+    api = init_api(keyfile, keynumber)
     from httplib import IncompleteRead
     try:
         searched_tweets = api.search(query)
@@ -147,7 +156,7 @@ def send_replies(query=None):
 
 def main(argv):
     ''' main '''
-    api = init_api('KEYS')
+    api = init_api()
     return send_replies()
 
 if __name__ == '__main__':
