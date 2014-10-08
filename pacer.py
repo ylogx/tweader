@@ -14,7 +14,11 @@ def pacer(query=None, keyfile=None, keynumber=None):
     count = 0
     print '--------------------------'
     while 1:
-        out = send_replies(query=query, keyfile=keyfile, keynumber=keynumber)
+        try:
+            out = send_replies(query=query, keyfile=keyfile, keynumber=keynumber)
+        except:
+            out = 0     # i.e sleep
+            print sys.exc_info()[1]
         print 'Sent ', out, ' replies in last call.'
         print '--------------------------'
         if out == 0:
